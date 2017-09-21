@@ -121,6 +121,7 @@ static bool getCoverageFormat4(vector<uint32_t>& coverage, const uint8_t* data, 
 
 // Get the coverage information out of a Format 12 subtable, storing it in the coverage vector
 static bool getCoverageFormat12(vector<uint32_t>& coverage, const uint8_t* data, size_t size) {
+    const uint32_t MAX_UNICODE_CODE_POINT = 0x10FFFF;
     const size_t kNGroupsOffset = 12;
     const size_t kFirstGroupOffset = 16;
     const size_t kGroupSize = 12;
@@ -144,6 +145,18 @@ static bool getCoverageFormat12(vector<uint32_t>& coverage, const uint8_t* data,
             // invalid group range: size must be positive
             android_errorWriteLog(0x534e4554, "26413177");
             return false;
+        }
+
+        // No need to read outside of Unicode code point range.
+        if (start > MAX_UNICODE_CODE_POINT) {
+            return true;
+        }
+        if (end > MAX_UNICODE_CODE_POINT) {
+            // file is inclusive, vector is exclusive
+            if (end == 0xFFFFFFFF) {
+                android_errorWriteLog(0x534e4554, "62134807");
+            }
+            return addRange(coverage, start, MAX_UNICODE_CODE_POINT + 1);
         }
         if (!addRange(coverage, start, end + 1)) {  // file is inclusive, vector is exclusive
             return false;
